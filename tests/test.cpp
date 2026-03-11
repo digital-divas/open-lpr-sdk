@@ -3,16 +3,24 @@
 
 int main() {
 
-    std::cout << "Starting LPR test..." << std::endl;
-
     LprEngine engine;
 
-    unsigned char frame[10]; // mock frame
+    unsigned char fake_frame[100];
 
-    auto result = engine.process(frame, 100, 100);
+    auto results = engine.process(fake_frame, 1920, 1080);
 
-    std::cout << "Plate: " << result.plate << std::endl;
-    std::cout << "Confidence: " << result.confidence << std::endl;
+    for (auto& r : results) {
 
-    return 0;
+        std::cout << "Plate: " << r.plate << std::endl;
+        std::cout << "Confidence: " << r.confidence << std::endl;
+
+        std::cout << "BBox: "
+                  << r.x1 << " "
+                  << r.y1 << " "
+                  << r.x2 << " "
+                  << r.y2 << std::endl;
+
+        std::cout << std::endl;
+    }
+
 }

@@ -5,14 +5,25 @@ LprEngine::LprEngine() {
     std::cout << "LPR Engine initialized" << std::endl;
 }
 
-LprResult LprEngine::process(const unsigned char* frame,
-                             int width,
-                             int height) {
+std::vector<LprResult> LprEngine::process(
+    const unsigned char* frame,
+    int width,
+    int height
+) {
 
-    LprResult result;
+    std::vector<LprResult> results;
 
-    result.plate = "FXL7E66";
-    result.confidence = 0.99;
+    LprResult r;
 
-    return result;
+    r.plate = "FXL7E66";
+    r.confidence = 0.99;
+
+    r.x1 = 100;
+    r.y1 = 200;
+    r.x2 = 300;
+    r.y2 = 250;
+
+    results.push_back(r);
+
+    return results;
 }
