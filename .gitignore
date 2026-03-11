@@ -1,1 +1,8 @@
 .DS_Store
+
+plates/
+
+.python-version
+
+*.onnx
+*.pt

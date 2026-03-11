@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import shutil
 from fast_plate_ocr import LicensePlateRecognizer
 
-# https://huggingface.co/wh0am-i/yolov11x-BrPlate
+# downloaded from https://huggingface.co/wh0am-i/yolov11x-BrPlate
 detector_model = YOLO("whoami.pt")
 detector_model.export(format="onnx")
 
