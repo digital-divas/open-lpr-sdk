@@ -13,11 +13,13 @@ add_library(lpr_objects OBJECT
 # static library (.a)
 add_library(lpr_sdk_static STATIC
     src/lpr.cpp
+    src/lpr_c.cpp
 )
 
 # dynamic library (.dylib / .so)
 add_library(lpr_sdk_shared SHARED
     src/lpr.cpp
+    src/lpr_c.cpp
 )
 
 add_executable(lpr_test
