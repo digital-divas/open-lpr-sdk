@@ -47,20 +47,13 @@ jobs:
           cmake .. -DONNXRUNTIME_ROOT=${{ env.ONNXRUNTIME_ROOT }}
           make -j$(nproc)
 
-      - name: Package artifacts
-        if: startsWith(github.ref, 'refs/tags/')
-        run: |
-          mkdir release
-          cp build/liblpr.so  release/
-          cp build/liblpr.a   release/
-          cp include/lpr.h    release/
-          cp include/lpr_c.h  release/
-          cd release && zip ../liblpr-linux-${{ github.ref_name }}.zip *
-
       - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: liblpr-linux-${{ github.ref_name }}.zip
+          files: |
+            build/**/*.so
+            build/**/*.a
+            include/**/*.h
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
