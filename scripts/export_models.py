@@ -6,6 +6,6 @@ from fast_plate_ocr import LicensePlateRecognizer
 detector_model = YOLO("whoami.pt")
 detector_model.export(format="onnx")
 
-recognizer = LicensePlateRecognizer('cct-xs-v1-global-model')
+recognizer = LicensePlateRecognizer("cct-xs-v1-global-model")
 ocr_model = recognizer.model
 shutil.copy(ocr_model._model_path, "./")

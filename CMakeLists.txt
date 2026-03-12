@@ -93,7 +93,7 @@ target_include_directories(lpr_static PUBLIC ${LPR_INCLUDES})
 target_link_libraries(lpr_static PRIVATE ${LPR_LIBS})
 
 # ── Test binary ───────────────────────────────────────────────────────────────
-add_executable(lpr_test tests/test.cpp)
-add_dependencies(lpr_test embedded_models)
-target_include_directories(lpr_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(lpr_test PRIVATE lpr_shared ${OpenCV_LIBS})
+add_executable(lpr_run tests/test.cpp)
+add_dependencies(lpr_run embedded_models)
+target_include_directories(lpr_run PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(lpr_run PRIVATE lpr_shared ${OpenCV_LIBS})

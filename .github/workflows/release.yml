@@ -1,0 +1,63 @@
+name: Build & Release
+
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+jobs:
+    build-linux:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y cmake libopencv-dev wget
+
+            - name: Install ONNX Runtime
+              run: |
+                  wget -q https://github.com/microsoft/onnxruntime/releases/download/v1.18.0/onnxruntime-linux-x64-1.18.0.tgz
+                  sudo tar -xzf onnxruntime-linux-x64-1.18.0.tgz -C /opt/
+                  echo "ONNXRUNTIME_ROOT=/opt/onnxruntime-linux-x64-1.18.0" >> $GITHUB_ENV
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.11"
+
+            - name: Install Python dependencies
+              run: |
+                  pip install ultralytics fast-plate-ocr 'fast-plate-ocr[onnx]'
+
+            - name: Export models
+              run: python scripts/export_models.py
+
+            - name: Build
+              run: |
+                  mkdir build && cd build
+                  cmake .. -DONNXRUNTIME_ROOT=${{ env.ONNXRUNTIME_ROOT }}
+                  make -j$(nproc)
+
+            - name: Package artifacts
+              run: |
+                  mkdir release
+                  cp build/liblpr.so  release/
+                  cp build/liblpr.a   release/
+                  cp include/lpr.h    release/
+                  cp include/lpr_c.h  release/
+                  cd release && zip ../liblpr-linux-${{ github.ref_name }}.zip *
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: liblpr-linux-${{ github.ref_name }}.zip
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
