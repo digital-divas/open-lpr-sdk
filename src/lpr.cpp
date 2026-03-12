@@ -9,8 +9,8 @@
 #include <onnxruntime_cxx_api.h>
 
 extern "C" {
-    extern const unsigned char whoami_onnx[];
-    extern const unsigned int  whoami_onnx_len;
+    extern const unsigned char best_onnx[];
+    extern const unsigned int  best_onnx_len;
     extern const unsigned char cct_xs_v1_global_onnx[];
     extern const unsigned int  cct_xs_v1_global_onnx_len;
 }
@@ -105,7 +105,7 @@ struct LprEngine::Impl {
     Impl()
         : opts(make_opts())
         , det_session(env,
-                      whoami_onnx, whoami_onnx_len,
+                      best_onnx, best_onnx_len,
                       opts)
         , ocr_session(env,
                       cct_xs_v1_global_onnx, cct_xs_v1_global_onnx_len,

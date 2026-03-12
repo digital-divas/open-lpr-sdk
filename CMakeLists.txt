@@ -40,7 +40,7 @@ file(MAKE_DIRECTORY ${MODELS_DIR})
 
 set(EMBED_SCRIPT "${CMAKE_SOURCE_DIR}/embed_model.py")
 
-foreach(MODEL whoami.onnx cct_xs_v1_global.onnx)
+foreach(MODEL best.onnx cct_xs_v1_global.onnx)
     string(REPLACE "." "_" MODEL_VAR ${MODEL})
     string(REPLACE "-" "_" MODEL_VAR ${MODEL_VAR})
     set(MODEL_SRC "${CMAKE_SOURCE_DIR}/${MODEL}")

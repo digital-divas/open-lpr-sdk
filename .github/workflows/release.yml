@@ -37,19 +37,8 @@ jobs:
         run: |
           pip install ultralytics fast-plate-ocr 'fast-plate-ocr[onnx]' huggingface_hub
 
-      - name: Download models
-        run: |
-          python - << 'PYEOF'
-          from huggingface_hub import hf_hub_download
-          hf_hub_download(
-              repo_id="wh0am-i/yolov11x-BrPlate",
-              filename="whoami.pt",
-              local_dir="./scripts/"
-          )
-          PYEOF
-
       - name: Export models
-        run: python scripts/export_models.py
+        run: python export_models.py
 
       - name: Build
         run: |
