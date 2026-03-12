@@ -2,12 +2,19 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 
-int main() {
+int main(int argc, char** argv) {
     LprEngine engine;
 
-    cv::Mat image = cv::imread("../dataset/FXL7E66.jpg");
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <image_path>\n";
+        return 1;
+    }
+
+    const char* image_path = argv[1];
+
+    cv::Mat image = cv::imread(image_path);
     if (image.empty()) {
-        std::cerr << "Erro ao carregar imagem\n";
+        std::cerr << "Erro ao carregar imagem: " << image_path << "\n";
         return 1;
     }
 
