@@ -9,6 +9,7 @@ third_party/
 
 # build artifacts
 build/
+build-*/
 cmake-build-*/
 CMakeFiles/
 CMakeCache.txt

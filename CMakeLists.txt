@@ -3,23 +3,23 @@ cmake_minimum_required(VERSION 3.16)
 project(lpr_sdk)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_BUILD_TYPE Release)
 
 include_directories(include)
 
 add_library(lpr_objects OBJECT
     src/lpr.cpp
+    src/lpr_c.cpp
 )
 
 # static library (.a)
 add_library(lpr_sdk_static STATIC
-    src/lpr.cpp
-    src/lpr_c.cpp
+    $<TARGET_OBJECTS:lpr_objects>
 )
 
 # dynamic library (.dylib / .so)
 add_library(lpr_sdk_shared SHARED
-    src/lpr.cpp
-    src/lpr_c.cpp
+    $<TARGET_OBJECTS:lpr_objects>
 )
 
 add_executable(lpr_test
