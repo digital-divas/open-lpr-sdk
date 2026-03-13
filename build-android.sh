@@ -12,8 +12,6 @@ ABIS=(
 
 OUT=android/openlprsdk/src/main
 
-cp include/* $OUT/include/
-
 for ABI in "${ABIS[@]}"; do
 
   BUILD_DIR=build-android-$ABI
