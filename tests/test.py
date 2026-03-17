@@ -24,6 +24,19 @@ results = (LprDetection * max_results)()
 # run sdk
 sdk = ctypes.CDLL('build/liblpr_sdk_shared.dylib')
 
+# tipos corretos
+sdk.lpr_create.restype = ctypes.c_void_p
+
+sdk.lpr_process.argtypes = [
+    ctypes.c_void_p,                     # engine
+    ctypes.POINTER(ctypes.c_uint8),     # frame
+    ctypes.c_int,                       # width
+    ctypes.c_int,                       # height
+    ctypes.POINTER(LprDetection),       # results
+    ctypes.c_int                        # max_results
+]
+sdk.lpr_process.restype = ctypes.c_int
+
 lpr = sdk.lpr_create()
 
 count = sdk.lpr_process(

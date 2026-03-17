@@ -168,18 +168,20 @@ endif()
 
 if(NOT IOS AND NOT ANDROID)
 
-    add_executable(lpr_test
+    include_directories(third_party/stb)
+
+    add_executable(open_lpr
         tests/test.cpp
     )
 
-    add_dependencies(lpr_test models_embedded)
+    add_dependencies(open_lpr models_embedded)
 
-    set_target_properties(lpr_test PROPERTIES
+    set_target_properties(open_lpr PROPERTIES
         BUILD_RPATH ${ONNXRUNTIME_DIR}
     )
 
     target_link_libraries(
-        lpr_test
+        open_lpr
         lpr_sdk_static
         onnxruntime
     )
