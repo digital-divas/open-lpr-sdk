@@ -14,8 +14,8 @@ class OpenLprSdk {
     private var enginePtr: Long = 0
 
     init {
-        System.loadLibrary("lpr_sdk_shared")
         System.loadLibrary("openlpr_jni")
+        System.loadLibrary("lpr_sdk_shared")
 
         enginePtr = nativeCreate()
     }

@@ -19,7 +19,19 @@ add_library(
 set_target_properties(
     lpr_sdk_shared
     PROPERTIES IMPORTED_LOCATION
-    ${CMAKE_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/liblpr_sdk_shared.so
+    ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/liblpr_sdk_shared.so
+)
+
+add_library(
+    onnxruntime
+    SHARED
+    IMPORTED
+)
+
+set_target_properties(
+    onnxruntime
+    PROPERTIES IMPORTED_LOCATION
+    ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libonnxruntime.so
 )
 
 find_library(log-lib log)
@@ -27,5 +39,6 @@ find_library(log-lib log)
 target_link_libraries(
     openlpr_jni
     lpr_sdk_shared
+    onnxruntime
     ${log-lib}
 )
