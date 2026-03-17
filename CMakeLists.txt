@@ -10,6 +10,8 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 
 set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
 
+enable_language(ASM)
+
 include_directories(include)
 
 #
@@ -85,39 +87,83 @@ else()
 endif()
 
 #
-# -------- LPR SDK ----------
+# -------- EMBED MODELS (.incbin) ----------
 #
 
-add_library(lpr_objects OBJECT
+if(IOS)
+    set(EMBED_PLATFORM ios)
+elseif(APPLE)
+    set(EMBED_PLATFORM darwin)
+elseif(ANDROID)
+    set(EMBED_PLATFORM android)
+else()
+    set(EMBED_PLATFORM linux)
+endif()
+
+set(MODELS_DIR ${CMAKE_BINARY_DIR}/models)
+file(MAKE_DIRECTORY ${MODELS_DIR})
+
+set(EMBED_SCRIPT ${CMAKE_SOURCE_DIR}/embed_model.py)
+
+set(MODEL_OBJECTS)
+
+foreach(MODEL whoami.onnx cct_xs_v1_global.onnx)
+
+    string(REPLACE "." "_" MODEL_VAR ${MODEL})
+    string(REPLACE "-" "_" MODEL_VAR ${MODEL_VAR})
+
+    set(MODEL_SRC ${CMAKE_SOURCE_DIR}/models/${MODEL})
+    set(MODEL_SRC_ASM ${MODELS_DIR}/${MODEL_VAR}.S)
+
+    add_custom_command(
+        OUTPUT ${MODEL_SRC_ASM}
+        COMMAND python3 ${EMBED_SCRIPT}
+                ${MODEL_SRC}
+                ${MODEL_SRC_ASM}
+                ${MODEL_VAR}
+                ${EMBED_PLATFORM}
+        DEPENDS ${MODEL_SRC}
+        COMMENT "Embedding ${MODEL}"
+    )
+
+    list(APPEND MODEL_OBJECTS ${MODEL_SRC_ASM})
+
+endforeach()
+
+add_custom_target(models_embedded DEPENDS ${MODEL_OBJECTS})
+
+#
+# -------- LPR SDK (SIMPLE + WORKING) ----------
+#
+
+set(LPR_SOURCES
     src/lpr.cpp
     src/lpr_c.cpp
+    ${MODEL_OBJECTS}
 )
 
-# static library (.a)
-add_library(lpr_sdk_static STATIC
-    $<TARGET_OBJECTS:lpr_objects>
-)
+# STATIC LIB
+add_library(lpr_sdk_static STATIC ${LPR_SOURCES})
+add_dependencies(lpr_sdk_static models_embedded)
 
 target_link_libraries(
     lpr_sdk_static
     onnxruntime
 )
 
+# SHARED LIB
 if(NOT IOS)
-    # dynamic library (.dylib / .so)
-    add_library(lpr_sdk_shared SHARED
-        $<TARGET_OBJECTS:lpr_objects>
-    )
+    add_library(lpr_sdk_shared SHARED ${LPR_SOURCES})
+    add_dependencies(lpr_sdk_shared models_embedded)
 
     target_link_libraries(
         lpr_sdk_shared
         onnxruntime
     )
-
 endif()
 
 #
-# Desktop test binary
+# -------- Desktop test ----------
 #
 
 if(NOT IOS AND NOT ANDROID)
@@ -125,6 +171,8 @@ if(NOT IOS AND NOT ANDROID)
     add_executable(lpr_test
         tests/test.cpp
     )
+
+    add_dependencies(lpr_test models_embedded)
 
     set_target_properties(lpr_test PROPERTIES
         BUILD_RPATH ${ONNXRUNTIME_DIR}

@@ -1,5 +1,7 @@
 package com.digitaldivas.openlprsdk
 
+import android.util.Log
+
 data class LprDetection(
         val plate: String,
         val confidence: Float,
@@ -12,16 +14,25 @@ data class LprDetection(
 class OpenLprSdk {
 
     private var enginePtr: Long = 0
+    private val TAG = "OpenLprSdk"
 
     init {
+        Log.d(TAG, "Loading native libraries...")
         System.loadLibrary("openlpr_jni")
         System.loadLibrary("lpr_sdk_shared")
+        Log.d(TAG, "Native libraries loaded")
 
+        Log.d(TAG, "Initializing LPR engine...")
         enginePtr = nativeCreate()
+        Log.d(TAG, "LPR engine initialized")
     }
 
     fun close() {
-        nativeDestroy(enginePtr)
+        if (enginePtr != 0L) {
+            nativeDestroy(enginePtr)
+            enginePtr = 0L
+            Log.d(TAG, "LPR engine destroyed")
+        }
     }
 
     fun process(frame: ByteArray, width: Int, height: Int): Array<LprDetection> {

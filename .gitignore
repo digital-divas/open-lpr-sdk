@@ -3,8 +3,9 @@ dataset/
 
 .python-version
 
-*.onnx
 *.pt
+
+models/*
 
 # build artifacts
 build/

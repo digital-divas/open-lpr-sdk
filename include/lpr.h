@@ -2,6 +2,8 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include <onnxruntime_cxx_api.h>
 
 struct LprResult {
 
@@ -27,4 +29,16 @@ public:
         int height
     );
 
+private:
+    Ort::Env env;
+    Ort::SessionOptions sessionOptions;
+
+    std::unique_ptr<Ort::Session> detector;
+    std::unique_ptr<Ort::Session> ocr;
+
+    std::string detectorInputName;
+    std::string detectorOutputName;
+
+    std::string ocrInputName;
+    std::string ocrOutputName;
 };
