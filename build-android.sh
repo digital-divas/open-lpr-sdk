@@ -37,3 +37,9 @@ for ABI in "${ABIS[@]}"; do
   cp third_party/onnxruntime/android/lib/$ABI/libonnxruntime.so $OUT/jniLibs/$ABI/
 
 done
+
+echo "Building gradlew..."
+
+cd android
+./gradlew clean
+./gradlew assembleRelease

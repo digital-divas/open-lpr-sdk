@@ -18,19 +18,22 @@ cmake -B $BUILD_DIR/device \
 
 cmake --build $BUILD_DIR/device --config Release
 
-echo "Building iOS simulator..."
+# echo "Building iOS simulator..."
 
-cmake -B $BUILD_DIR/simulator \
-    -DCMAKE_SYSTEM_NAME=iOS \
-    -DCMAKE_OSX_ARCHITECTURES=arm64 \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
-    -DCMAKE_OSX_SYSROOT=iphonesimulator
+# cmake -B $BUILD_DIR/simulator \
+#     -DCMAKE_SYSTEM_NAME=iOS \
+#     -DCMAKE_OSX_ARCHITECTURES=arm64 \
+#     -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0 \
+#     -DCMAKE_OSX_SYSROOT=iphonesimulator
 
-cmake --build $BUILD_DIR/simulator --config Release
+# cmake --build $BUILD_DIR/simulator --config Release
+
+libtool -static \
+  $BUILD_DIR/device/liblpr_sdk_static.a \
+  third_party/onnxruntime/ios/onnxruntime.xcframework/ios-arm64/libonnxruntime.a \
+  -o $BUILD_DIR/device/liblpr_combined.a
 
 xcodebuild -create-xcframework \
- -library build-ios/device/liblpr_sdk_static.a \
+ -library $BUILD_DIR/device/liblpr_combined.a \
  -headers include \
- -library build-ios/simulator/liblpr_sdk_static.a \
- -headers include \
- -output build-ios/LprSdk.xcframework
+ -output $BUILD_DIR/LprSdk.xcframework

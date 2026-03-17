@@ -13,11 +13,9 @@ cmake-build-*/
 CMakeFiles/
 CMakeCache.txt
 Makefile
+android/openlprsdk/src/main/jniLibs/*
+ios/openlprsdk/openlprsdk/Native/*
 
-# binaries
-*.so
-*.a
-# *.dylib
 *.o
 
 # macOS
