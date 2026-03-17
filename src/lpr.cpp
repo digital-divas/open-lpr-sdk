@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 #include <iostream>
+#include <numeric>
 
 // =========================
 // Utils básicos
@@ -61,6 +62,90 @@ static Image resize_bilinear(const Image& src, int new_w, int new_h) {
     return dst;
 }
 
+// BGR → RGB (igual OpenCV pipeline)
+static void bgr_to_rgb(Image& img) {
+    for (int i = 0; i < img.w * img.h; i++) {
+        std::swap(img.data[i * 3 + 0], img.data[i * 3 + 2]);
+    }
+}
+
+static Image crop_image(const Image& src, int x1, int y1, int x2, int y2) {
+    x1 = std::max(0, x1);
+    y1 = std::max(0, y1);
+    x2 = std::min(src.w, x2);
+    y2 = std::min(src.h, y2);
+
+    int w = x2 - x1;
+    int h = y2 - y1;
+
+    Image out{w, h, 3};
+    out.data.resize(w * h * 3);
+
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
+            for (int c = 0; c < 3; c++) {
+                out.data[(y * w + x) * 3 + c] =
+                    src.data[((y + y1) * src.w + (x + x1)) * 3 + c];
+            }
+        }
+    }
+
+    return out;
+}
+
+static Image ocr_preprocess(const Image& img, int target_w = 128, int target_h = 64) {
+
+    float scale = std::min(float(target_w) / img.w, float(target_h) / img.h);
+
+    int new_w = int(img.w * scale);
+    int new_h = int(img.h * scale);
+
+    Image resized = resize_bilinear(img, new_w, new_h);
+
+    Image canvas{target_w, target_h, 3};
+    canvas.data.resize(target_w * target_h * 3, 0);
+
+    int x_off = (target_w - new_w) / 2;
+    int y_off = (target_h - new_h) / 2;
+
+    for (int y = 0; y < new_h; y++) {
+        for (int x = 0; x < new_w; x++) {
+            for (int c = 0; c < 3; c++) {
+                canvas.data[((y + y_off) * target_w + (x + x_off)) * 3 + c] =
+                    resized.data[(y * new_w + x) * 3 + c];
+            }
+        }
+    }
+
+    // BGR → RGB (igual antes)
+    bgr_to_rgb(canvas);
+
+    return canvas;
+}
+
+static std::pair<std::string, float> ctc_decode(const float* data, int T, int num_classes) {
+
+    std::string plate;
+    std::vector<float> confs;
+
+    for (int t = 0; t < T; t++) {
+        const float* row = data + t * num_classes;
+
+        int best = std::max_element(row, row + num_classes) - row;
+
+        if (best == num_classes - 1) continue; // blank
+
+        char c = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_"[best];
+        plate += c;
+        confs.push_back(row[best]);
+    }
+
+    float conf = confs.empty() ? 0.f :
+        std::accumulate(confs.begin(), confs.end(), 0.f) / confs.size();
+
+    return {plate, conf};
+}
+
 // Letterbox (YOLO style)
 struct LetterboxResult {
     Image img;
@@ -93,13 +178,6 @@ static LetterboxResult letterbox(const Image& src, int new_w = 640, int new_h = 
     }
 
     return {out, r, float(dw), float(dh)};
-}
-
-// BGR → RGB (igual OpenCV pipeline)
-static void bgr_to_rgb(Image& img) {
-    for (int i = 0; i < img.w * img.h; i++) {
-        std::swap(img.data[i * 3 + 0], img.data[i * 3 + 2]);
-    }
 }
 
 // HWC → CHW + normalize
@@ -284,8 +362,48 @@ std::vector<LprResult> LprEngine::process(
         if (d.conf >= 0.75) {
             LprResult r;
 
-            r.plate = "FXL7E66"; 
-            r.confidence = d.conf;
+            Image crop = crop_image(img, d.x1, d.y1, d.x2, d.y2);
+
+            Image ocr_img = ocr_preprocess(crop);
+
+            // NHWC uint8
+            std::vector<int64_t> ocr_shape = {1, 64, 128, 3};
+
+            Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+
+            auto ocr_tensor = Ort::Value::CreateTensor<uint8_t>(
+                mem,
+                ocr_img.data.data(),
+                ocr_img.data.size(),
+                ocr_shape.data(),
+                ocr_shape.size()
+            );
+
+            const char* ocr_in[] = {ocrInputName.c_str()};
+            const char* ocr_out[] = {ocrOutputName.c_str()};
+
+            auto ocr_outputs = ocr->Run(
+                Ort::RunOptions{nullptr},
+                ocr_in,
+                &ocr_tensor,
+                1,
+                ocr_out,
+                1
+            );
+
+            auto shape = ocr_outputs[0].GetTensorTypeAndShapeInfo().GetShape();
+
+            int T = (int)shape[1];
+            int num_classes = (int)shape[2];
+
+            auto [plate, conf] = ctc_decode(
+                ocr_outputs[0].GetTensorData<float>(),
+                T,
+                num_classes
+            );
+
+            r.plate = plate;
+            r.confidence = conf;
 
             r.x1 = std::max(0, (int)d.x1);
             r.y1 = std::max(0, (int)d.y1);
