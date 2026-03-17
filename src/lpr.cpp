@@ -1,5 +1,6 @@
 #include "lpr.h"
 #include <iostream>
+#include <onnxruntime_cxx_api.h>
 
 LprEngine::LprEngine() {
     std::cout << "LPR Engine initialized" << std::endl;

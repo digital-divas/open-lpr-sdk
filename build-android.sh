@@ -34,5 +34,6 @@ for ABI in "${ABIS[@]}"; do
   mkdir -p $OUT/jniLibs/$ABI
 
   cp $BUILD_DIR/liblpr_sdk_shared.so $OUT/jniLibs/$ABI/
+  cp third_party/onnxruntime/android/lib/$ABI/libonnxruntime.so $OUT/jniLibs/$ABI/
 
 done

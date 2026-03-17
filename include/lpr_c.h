@@ -6,6 +6,12 @@
 extern "C" {
 #endif
 
+#ifdef _WIN32
+#define LPR_API __declspec(dllexport)
+#else
+#define LPR_API __attribute__((visibility("default")))
+#endif
+
 typedef struct {
 
     char plate[16];
@@ -20,11 +26,11 @@ typedef struct {
 
 typedef struct LprEngineHandle LprEngineHandle;
 
-LprEngineHandle* lpr_create();
+LPR_API LprEngineHandle* lpr_create();
 
-void lpr_destroy(LprEngineHandle* engine);
+LPR_API void lpr_destroy(LprEngineHandle* engine);
 
-int lpr_process(
+LPR_API int lpr_process(
     LprEngineHandle* engine,
     const uint8_t* frame,
     int width,

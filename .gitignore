@@ -1,6 +1,5 @@
 plates/
 dataset/
-third_party/
 
 .python-version
 
@@ -18,7 +17,7 @@ Makefile
 # binaries
 *.so
 *.a
-*.dylib
+# *.dylib
 *.o
 
 # macOS
