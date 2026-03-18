@@ -1,249 +1,256 @@
 name: Build & Release
 
 on:
-    push:
-        branches:
-            - main
-        tags:
-            - "v*"
-    workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
 permissions:
-    contents: write
+  contents: write
 
 jobs:
-    context:
-        runs-on: ubuntu-latest
-        outputs:
-            version: ${{ steps.set.outputs.version }}
-            is_tag: ${{ steps.set.outputs.is_tag }}
+  context:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set.outputs.version }}
+      is_tag: ${{ steps.set.outputs.is_tag }}
 
-        steps:
-            - id: set
-              run: |
-                  if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-                      VERSION="${GITHUB_REF#refs/tags/v}"
-                      echo "env_name=production" >> $GITHUB_OUTPUT
-                      echo "version=$VERSION" >> $GITHUB_OUTPUT
-                      echo "is_tag=true" >> $GITHUB_OUTPUT
-                  else
-                      if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
-                      echo "env_name=production" >> $GITHUB_OUTPUT
-                      else
-                      echo "env_name=stage" >> $GITHUB_OUTPUT
-                      fi
-                      echo "version=0.0.0" >> $GITHUB_OUTPUT
-                      echo "is_tag=false" >> $GITHUB_OUTPUT
-                  fi
+    steps:
+      - id: set
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              VERSION="${GITHUB_REF#refs/tags/v}"
+              echo "env_name=production" >> $GITHUB_OUTPUT
+              echo "version=$VERSION" >> $GITHUB_OUTPUT
+              echo "is_tag=true" >> $GITHUB_OUTPUT
+          else
+              if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+              echo "env_name=production" >> $GITHUB_OUTPUT
+              else
+              echo "env_name=stage" >> $GITHUB_OUTPUT
+              fi
+              echo "version=0.0.0" >> $GITHUB_OUTPUT
+              echo "is_tag=false" >> $GITHUB_OUTPUT
+          fi
 
-    generate-onnx-models:
-        runs-on: ubuntu-latest
+  generate-onnx-models:
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Set up Python
-              uses: actions/setup-python@v5
-              with:
-                  python-version: "3.13"
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
 
-            - name: Install Python dependencies
-              run: |
-                  pip install ultralytics fast-plate-ocr 'fast-plate-ocr[onnx]' huggingface_hub
+      - name: Install Python dependencies
+        run: |
+          pip install ultralytics fast-plate-ocr 'fast-plate-ocr[onnx]' huggingface_hub
 
-            - name: Export models
-              run: python export_models.py
+      - name: Export models
+        run: python export_models.py
 
-            - name: Upload models
-              uses: actions/upload-artifact@v4
-              with:
-                  name: models
-                  path: models/
+      - name: Upload models
+        uses: actions/upload-artifact@v4
+        with:
+          name: models
+          path: models/
 
-    build-linux:
-        needs: [generate-onnx-models, context]
-        runs-on: ubuntu-latest
+  build-linux:
+    needs: [generate-onnx-models, context]
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Download models
-              uses: actions/download-artifact@v4
-              with:
-                  name: models
-                  path: models/
+      - name: Download models
+        uses: actions/download-artifact@v4
+        with:
+          name: models
+          path: models/
 
-            - name: Build
-              run: ./build.sh
+      - name: Build
+        run: ./build.sh
 
-            - name: Generate Package
-              run: |
-                  OUT_DIR=dist/lpr-sdk
-                  mkdir -p $OUT_DIR/include
-                  mkdir -p $OUT_DIR/lib
-                  mkdir output
+      - name: Generate Package
+        run: |
+          OUT_DIR=dist/lpr-sdk
+          mkdir -p $OUT_DIR/include
+          mkdir -p $OUT_DIR/lib
+          mkdir output
 
-                  cp -r include/* $OUT_DIR/include/
-                  cp build/liblpr_sdk_static.a $OUT_DIR/lib/
-                  cp build/liblpr_sdk_shared.so $OUT_DIR/lib/
-                  cp build/open_lpr $OUT_DIR/lib/
+          cp -r include/* $OUT_DIR/include/
+          cp build/liblpr_sdk_static.a $OUT_DIR/lib/
+          cp build/liblpr_sdk_shared.so $OUT_DIR/lib/
+          cp build/open_lpr $OUT_DIR/lib/
 
-                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
-                    tar -czf output/open-lpr-sdk-linux-x64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
-                  else
-                    tar -czf output/open-lpr-sdk-linux-x64-0.0.0.tgz -C dist lpr-sdk
-                  fi
+          if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+            tar -czf output/open-lpr-sdk-linux-x64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
+          else
+            tar -czf output/open-lpr-sdk-linux-x64-0.0.0.tgz -C dist lpr-sdk
+          fi
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: linux-x64
-                  path: output/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-x64
+          path: output/
 
-    build-android:
-        needs: [generate-onnx-models, context]
-        runs-on: ubuntu-latest
+  build-android:
+    needs: [generate-onnx-models, context]
+    runs-on: ubuntu-latest
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Download models
-              uses: actions/download-artifact@v4
-              with:
-                  name: models
-                  path: models/
+      - name: Download models
+        uses: actions/download-artifact@v4
+        with:
+          name: models
+          path: models/
 
-            - name: Set NDK env
-              run: echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-            - name: Build
-              run: ./build-android.sh
+      - name: Install NDK
+        run: |
+          sdkmanager "ndk;26.1.10909125"
 
-            - name: Generate Package
-              run: |
-                  mkdir output
+      - name: Set NDK env
+        run: echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
 
-                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
-                    cp android/openlprsdk/build/outputs/aar/openlprsdk-release.aar output/open-lpr-sdk-android-${{ needs.context.outputs.version }}.aar
-                  else
-                    cp android/openlprsdk/build/outputs/aar/openlprsdk-release.aar output/open-lpr-sdk-android-0.0.0.aar
-                  fi
+      - name: Build
+        run: ./build-android.sh
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: android-aar
-                  path: output/
+      - name: Generate Package
+        run: |
+          mkdir output
 
-    build-osx:
-        needs: [generate-onnx-models, context]
-        runs-on: macos-latest
+          if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+            cp android/openlprsdk/build/outputs/aar/openlprsdk-release.aar output/open-lpr-sdk-android-${{ needs.context.outputs.version }}.aar
+          else
+            cp android/openlprsdk/build/outputs/aar/openlprsdk-release.aar output/open-lpr-sdk-android-0.0.0.aar
+          fi
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-aar
+          path: output/
 
-            - name: Download models
-              uses: actions/download-artifact@v4
-              with:
-                  name: models
-                  path: models/
+  build-osx:
+    needs: [generate-onnx-models, context]
+    runs-on: macos-latest
 
-            - name: Build
-              run: ./build.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Generate Package
-              run: |
-                  OUT_DIR=dist/lpr-sdk
-                  mkdir -p $OUT_DIR/include
-                  mkdir -p $OUT_DIR/lib
-                  mkdir output
+      - name: Download models
+        uses: actions/download-artifact@v4
+        with:
+          name: models
+          path: models/
 
-                  cp -r include/* $OUT_DIR/include/
-                  cp build/liblpr_sdk_static.a $OUT_DIR/lib/
-                  cp build/liblpr_sdk_shared.dylib $OUT_DIR/lib/
-                  cp build/open_lpr $OUT_DIR/lib/
+      - name: Build
+        run: ./build.sh
 
-                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
-                    tar -czf output/open-lpr-sdk-osx-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
-                  else
-                    tar -czf output/open-lpr-sdk-osx-arm64-0.0.0.tgz -C dist lpr-sdk
-                  fi
+      - name: Generate Package
+        run: |
+          OUT_DIR=dist/lpr-sdk
+          mkdir -p $OUT_DIR/include
+          mkdir -p $OUT_DIR/lib
+          mkdir output
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: osx-arm64
-                  path: output/
+          cp -r include/* $OUT_DIR/include/
+          cp build/liblpr_sdk_static.a $OUT_DIR/lib/
+          cp build/liblpr_sdk_shared.dylib $OUT_DIR/lib/
+          cp build/open_lpr $OUT_DIR/lib/
 
-    build-ios:
-        needs: [generate-onnx-models, context]
-        runs-on: macos-latest
+          if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+            tar -czf output/open-lpr-sdk-osx-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
+          else
+            tar -czf output/open-lpr-sdk-osx-arm64-0.0.0.tgz -C dist lpr-sdk
+          fi
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: osx-arm64
+          path: output/
 
-            - name: Download models
-              uses: actions/download-artifact@v4
-              with:
-                  name: models
-                  path: models/
+  build-ios:
+    needs: [generate-onnx-models, context]
+    runs-on: macos-latest
 
-            - name: Build
-              run: ./build-ios.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-            - name: Generate Package
-              run: |
-                  OUT_DIR=dist/lpr-sdk
-                  mkdir output
-                  mkdir -p $OUT_DIR
+      - name: Download models
+        uses: actions/download-artifact@v4
+        with:
+          name: models
+          path: models/
 
-                  cp -r build-ios/LprSdk.xcframework $OUT_DIR/
+      - name: Build
+        run: ./build-ios.sh
 
-                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
-                    tar -czf output/open-lpr-sdk-ios-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
-                  else
-                    tar -czf output/open-lpr-sdk-ios-arm64-0.0.0.tgz -C dist lpr-sdk
-                  fi
+      - name: Generate Package
+        run: |
+          OUT_DIR=dist/lpr-sdk
+          mkdir output
+          mkdir -p $OUT_DIR
 
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: ios-arm64
-                  path: output/
+          cp -r build-ios/LprSdk.xcframework $OUT_DIR/
 
-    release:
-        needs: [build-linux, build-android, build-osx, build-ios, context]
-        runs-on: ubuntu-latest
-        permissions:
-            contents: write
+          if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+            tar -czf output/open-lpr-sdk-ios-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
+          else
+            tar -czf output/open-lpr-sdk-ios-arm64-0.0.0.tgz -C dist lpr-sdk
+          fi
 
-        steps:
-            - uses: actions/download-artifact@v4
-              with:
-                  path: artifacts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-arm64
+          path: output/
 
-            - name: Generate name
-              id: meta
-              run: |
-                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
-                      echo "name=Release v${{ needs.context.outputs.version }}" >> $GITHUB_OUTPUT
-                      echo "tag=v${{ needs.context.outputs.version }}" >> $GITHUB_OUTPUT
-                      echo "prerelease=false" >> $GITHUB_OUTPUT
-                  else
-                      echo "name=Build 0.0.0 (#${GITHUB_RUN_NUMBER})" >> $GITHUB_OUTPUT
-                      echo "tag=build-${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
-                      echo "prerelease=true" >> $GITHUB_OUTPUT
-                  fi
+  release:
+    needs: [build-linux, build-android, build-osx, build-ios, context]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
-            - name: Create Release + Upload Assets
-              id: release
-              uses: softprops/action-gh-release@v2
-              with:
-                  tag_name: ${{ steps.meta.outputs.tag }}
-                  name: ${{ steps.meta.outputs.name }}
-                  prerelease: ${{ steps.meta.outputs.prerelease }}
-                  files: |
-                      artifacts/**/*.tgz
-                      artifacts/**/*.aar
-              env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Generate name
+        id: meta
+        run: |
+          if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+              echo "name=Release v${{ needs.context.outputs.version }}" >> $GITHUB_OUTPUT
+              echo "tag=v${{ needs.context.outputs.version }}" >> $GITHUB_OUTPUT
+              echo "prerelease=false" >> $GITHUB_OUTPUT
+          else
+              echo "name=Build 0.0.0 (#${GITHUB_RUN_NUMBER})" >> $GITHUB_OUTPUT
+              echo "tag=build-${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
+              echo "prerelease=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release + Upload Assets
+        id: release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.name }}
+          prerelease: ${{ steps.meta.outputs.prerelease }}
+          files: |
+            artifacts/**/*.tgz
+            artifacts/**/*.aar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
