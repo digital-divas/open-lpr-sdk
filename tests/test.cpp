@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
 
     unsigned char* data = stbi_load(image_path, &width, &height, &channels, 3);
     if (!data) {
-        std::cerr << "Erro ao carregar imagem: " << image_path << "\n";
+        std::cerr << "Error loading image: " << image_path << "\n";
         return 1;
     }
 
@@ -31,7 +31,7 @@ int main(int argc, char** argv) {
     auto results = engine.process(data, width, height);
 
     if (results.empty()) {
-        std::cout << "Nenhuma placa detectada\n";
+        std::cout << "No plate detected\n";
     } else {
         for (auto& r : results) {
             std::cout << "Plate:      " << r.plate      << std::endl;

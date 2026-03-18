@@ -183,7 +183,6 @@ if(NOT IOS AND NOT ANDROID)
     target_link_libraries(
         open_lpr
         lpr_sdk_static
-        onnxruntime
     )
 
 endif()

@@ -100,6 +100,46 @@ jobs:
                   name: linux-x64
                   path: output/
 
+    build-android:
+        needs: [generate-onnx-models, context]
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Download models
+              uses: actions/download-artifact@v4
+              with:
+                  name: models
+                  path: models/
+
+            - name: Setup Android NDK
+              run: |
+                  yes | sdkmanager --licenses
+                  sdkmanager "ndk;26.1.10909125"
+
+            - name: Set NDK env
+              run: echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
+
+            - name: Build
+              run: ./build-android.sh
+
+            - name: Generate Package
+              run: |
+                  mkdir output
+
+                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+                    cp android/openlprsdk/build/outputs/aar/openlprsdk-release.aar output/open-lpr-sdk-android-${{ needs.context.outputs.version }}.aar
+                  else
+                    cp android/openlprsdk/build/outputs/aar/openlprsdk-release.aar output/open-lpr-sdk-android-0.0.0.aar
+                  fi
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: android-aar
+                  path: output/
+
     build-osx:
         needs: [generate-onnx-models, context]
         runs-on: macos-latest
@@ -140,8 +180,43 @@ jobs:
                   name: osx-arm64
                   path: output/
 
+    build-ios:
+        needs: [generate-onnx-models, context]
+        runs-on: macos-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Download models
+              uses: actions/download-artifact@v4
+              with:
+                  name: models
+                  path: models/
+
+            - name: Build
+              run: ./build-ios.sh
+
+            - name: Generate Package
+              run: |
+                  OUT_DIR=dist/lpr-sdk
+                  mkdir output
+
+                  cp -r build-ios/LprSdk.xcframework $OUT_DIR/
+
+                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+                    tar -czf output/open-lpr-sdk-ios-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
+                  else
+                    tar -czf output/open-lpr-sdk-ios-arm64-0.0.0.tgz -C dist lpr-sdk
+                  fi
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: ios-arm64
+                  path: output/
+
     release:
-        needs: [build-linux, build-osx, context]
+        needs: [build-linux, build-android, build-osx, build-ios, context]
         runs-on: ubuntu-latest
         permissions:
             contents: write
