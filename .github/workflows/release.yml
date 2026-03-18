@@ -1,0 +1,119 @@
+name: Build & Release
+
+on:
+    push:
+        branches:
+            - main
+        tags:
+            - "v*"
+    workflow_dispatch:
+permissions:
+    contents: write
+
+jobs:
+    context:
+        runs-on: ubuntu-latest
+        outputs:
+            version: ${{ steps.set.outputs.version }}
+            is_tag: ${{ steps.set.outputs.is_tag }}
+
+        steps:
+            - id: set
+              run: |
+                  if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+                      VERSION="${GITHUB_REF#refs/tags/v}"
+                      echo "env_name=production" >> $GITHUB_OUTPUT
+                      echo "version=$VERSION" >> $GITHUB_OUTPUT
+                      echo "is_tag=true" >> $GITHUB_OUTPUT
+                  else
+                      if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+                      echo "env_name=production" >> $GITHUB_OUTPUT
+                      else
+                      echo "env_name=stage" >> $GITHUB_OUTPUT
+                      fi
+                      echo "version=0.0.0" >> $GITHUB_OUTPUT
+                      echo "is_tag=false" >> $GITHUB_OUTPUT
+                  fi
+
+    build-linux:
+        needs: context
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.13"
+
+            - name: Install Python dependencies
+              run: |
+                  pip install ultralytics fast-plate-ocr 'fast-plate-ocr[onnx]' huggingface_hub
+
+            - name: Export models
+              run: python export_models.py
+
+            - name: Build
+              run: ./build.sh
+
+            - name: Generate Package
+              run: |
+                  OUT_DIR=dist/lpr-sdk
+                  mkdir -p $OUT_DIR/include
+                  mkdir -p $OUT_DIR/lib
+                  mkdir output
+
+                  cp -r include/* $OUT_DIR/include/
+                  cp build/liblpr_sdk_static.a $OUT_DIR/lib/
+                  cp build/liblpr_sdk_shared.so $OUT_DIR/lib/
+                  cp build/open_lpr $OUT_DIR/lib/
+
+                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+                    tar -czf output/open-lpr-sdk-linux-x64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
+                  else
+                    tar -czf output/open-lpr-sdk-linux-x64-0.0.0.tgz -C dist lpr-sdk
+                  fi
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: linux-x64
+                  path: output/
+
+    release:
+        needs: [build-linux, context]
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write
+
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  path: artifacts
+
+            - name: Generate name
+              id: meta
+              run: |
+                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+                      echo "name=Release v${{ needs.context.outputs.version }}" >> $GITHUB_OUTPUT
+                      echo "tag=v${{ needs.context.outputs.version }}" >> $GITHUB_OUTPUT
+                      echo "prerelease=false" >> $GITHUB_OUTPUT
+                  else
+                      echo "name=Build 0.0.0 (#${GITHUB_RUN_NUMBER})" >> $GITHUB_OUTPUT
+                      echo "tag=build-${GITHUB_RUN_NUMBER}" >> $GITHUB_OUTPUT
+                      echo "prerelease=true" >> $GITHUB_OUTPUT
+                  fi
+
+            - name: Create Release + Upload Assets
+              id: release
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ steps.meta.outputs.tag }}
+                  name: ${{ steps.meta.outputs.name }}
+                  prerelease: ${{ steps.meta.outputs.prerelease }}
+                  files: |
+                      artifacts/**/*.tgz
+                      artifacts/**/*.aar
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
