@@ -35,8 +35,7 @@ jobs:
                       echo "is_tag=false" >> $GITHUB_OUTPUT
                   fi
 
-    build-linux:
-        needs: context
+    generate-onnx-models:
         runs-on: ubuntu-latest
 
         steps:
@@ -54,6 +53,26 @@ jobs:
 
             - name: Export models
               run: python export_models.py
+
+            - name: Upload models
+              uses: actions/upload-artifact@v4
+              with:
+                  name: models
+                  path: models/
+
+    build-linux:
+        needs: [generate-onnx-models, context]
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Download models
+              uses: actions/download-artifact@v4
+              with:
+                  name: models
+                  path: models/
 
             - name: Build
               run: ./build.sh
@@ -81,8 +100,48 @@ jobs:
                   name: linux-x64
                   path: output/
 
+    build-osx:
+        needs: [generate-onnx-models, context]
+        runs-on: macos-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Download models
+              uses: actions/download-artifact@v4
+              with:
+                  name: models
+                  path: models/
+
+            - name: Build
+              run: ./build.sh
+
+            - name: Generate Package
+              run: |
+                  OUT_DIR=dist/lpr-sdk
+                  mkdir -p $OUT_DIR/include
+                  mkdir -p $OUT_DIR/lib
+                  mkdir output
+
+                  cp -r include/* $OUT_DIR/include/
+                  cp build/liblpr_sdk_static.a $OUT_DIR/lib/
+                  cp build/liblpr_sdk_shared.dylib $OUT_DIR/lib/
+                  cp build/open_lpr $OUT_DIR/lib/
+
+                  if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
+                    tar -czf output/open-lpr-sdk-osx-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
+                  else
+                    tar -czf output/open-lpr-sdk-osx-arm64-0.0.0.tgz -C dist lpr-sdk
+                  fi
+
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: osx-arm64
+                  path: output/
+
     release:
-        needs: [build-linux, context]
+        needs: [build-linux, build-osx, context]
         runs-on: ubuntu-latest
         permissions:
             contents: write
