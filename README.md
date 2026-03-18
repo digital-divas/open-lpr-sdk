@@ -23,6 +23,132 @@ without requiring cloud APIs.
 - 🧩 C++ core with cross-platform support
 - 🔌 Easy integration into iOS / Android apps
 
+## Installation
+
+### Android (Gradle)
+
+The SDK is automatically downloaded during build time.
+
+1. Add to your build.gradle (app)
+
+    ```gradle
+    def lprVersion = "1.0.0"
+    def lprSdkFile = file("$buildDir/openlprsdk-$lprVersion.aar")
+
+    tasks.register("downloadLprSdk") {
+        doLast {
+            if (lprSdkFile.exists()) {
+                println("OpenLPR SDK already exists")
+                return
+            }
+
+            def url = "https://github.com/digital-divas/open-lpr-sdk/releases/download/v${lprSdkVersion}/open-lpr-sdk-android-${lprSdkVersion}.aar"
+
+            println("Downloading OpenLPR SDK ${lprSdkVersion}...")
+
+            lprSdkFile.parentFile.mkdirs()
+
+            new URL(url).withInputStream { input ->
+                lprSdkFile.withOutputStream { output ->
+                    output << input
+                }
+            }
+
+            println("Downloaded OpenLPR SDK successfully.")
+
+        }
+    }
+
+    preBuild.dependsOn(downloadLprSdk)
+
+    dependencies {
+        implementation files(lprSdkFile)
+    }
+    ```
+
+2. Usage in Kotlin
+
+    ```kotlin
+    import com.digitaldivas.openlprsdk.OpenLprSdk
+
+    class MyDetector {
+
+        private val sdk = OpenLprSdk()
+
+        fun process() {
+            val detections = sdk.process(frame, width, height)
+        }
+
+    }
+    ```
+
+### iOS (Swift Package Manager)
+
+1. In Xcode
+
+    ```code
+    File → Add Package Dependencies...
+    ```
+
+    Paste the repository URL:
+
+    ```code
+    https://github.com/digital-divas/open-lpr-sdk-ios
+    ```
+
+2. Choose version
+
+    Recommended:
+
+    ```code
+    Up to Next Major Version
+    ```
+
+3. Usage in Swift
+
+    ```swift
+    let sdk = lpr_create()
+
+    let maxResults: Int32 = 16
+    var detections = [LprDetection](repeating: LprDetection(), count: Int(maxResults))
+
+    let count = frame.withUnsafeBufferPointer { framePtr in
+      detections.withUnsafeMutableBufferPointer { resultsPtr in
+        lpr_process(sdk, framePtr.baseAddress, Int32(width), Int32(height), resultsPtr.baseAddress, maxResults)
+      }
+    }
+
+    if (count == 0) {
+      logger.debug("None plate detected by OpenLpr")
+      return nil
+    }
+    
+    logger.debug("detections found: \(count)")
+    
+    let d = detections[0]
+
+    let plate = withUnsafePointer(to: &detections[0].plate) {
+        $0.withMemoryRebound(to: CChar.self, capacity: 16) {
+            String(cString: $0)
+        }
+    }
+    ```
+
+## Distribution
+
+| Platform | Method |
+|---|---|
+| Android | AAR via Gradle download |
+| iOS | Swift Package Manager |
+| MacOS | Github Releases |
+| Linux | Github Releases |
+
+### Notes
+
+- ONNX models are embedded into the binary
+- No external model download is required
+- CPU-only (no GPU dependency)
+
 ## How it works
 
 _The models used by the sdk were generated using the script `export_models.py`._
