@@ -203,17 +203,9 @@ jobs:
 
       - name: Generate Package
         run: |
-          OUT_DIR=dist/lpr-sdk
-          mkdir output
-          mkdir -p $OUT_DIR
-
-          cp -r build-ios/LprSdk.xcframework $OUT_DIR/
-
-          if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
-            tar -czf output/open-lpr-sdk-ios-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
-          else
-            tar -czf output/open-lpr-sdk-ios-arm64-0.0.0.tgz -C dist lpr-sdk
-          fi
+          mkdir -p output
+          cd build-ios
+          zip -r ../output/LprSdk.xcframework.zip LprSdk.xcframework
 
       - uses: actions/upload-artifact@v4
         with:
@@ -253,6 +245,7 @@ jobs:
           prerelease: ${{ steps.meta.outputs.prerelease }}
           files: |
             artifacts/**/*.tgz
+            artifacts/**/*.zip
             artifacts/**/*.aar
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
