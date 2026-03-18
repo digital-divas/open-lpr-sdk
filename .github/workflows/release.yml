@@ -114,10 +114,6 @@ jobs:
                   name: models
                   path: models/
 
-            - name: Setup Android NDK
-              run: |
-                  sdkmanager "ndk;26.1.10909125"
-
             - name: Set NDK env
               run: echo "ANDROID_NDK=$ANDROID_SDK_ROOT/ndk/26.1.10909125" >> $GITHUB_ENV
 
@@ -200,7 +196,7 @@ jobs:
               run: |
                   OUT_DIR=dist/lpr-sdk
                   mkdir output
-                  mkdir $OUT_DIR
+                  mkdir -p $OUT_DIR
 
                   cp -r build-ios/LprSdk.xcframework $OUT_DIR/
 
