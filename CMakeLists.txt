@@ -180,6 +180,10 @@ if(NOT IOS AND NOT ANDROID)
         BUILD_RPATH ${ONNXRUNTIME_DIR}
     )
 
+    set_target_properties(open_lpr PROPERTIES
+        INSTALL_RPATH "@loader_path"
+    )
+
     target_link_libraries(
         open_lpr
         lpr_sdk_static

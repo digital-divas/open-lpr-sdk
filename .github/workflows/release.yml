@@ -88,6 +88,7 @@ jobs:
           cp build/liblpr_sdk_static.a $OUT_DIR/lib/
           cp build/liblpr_sdk_shared.so $OUT_DIR/lib/
           cp build/open_lpr $OUT_DIR/lib/
+          cp third_party/onnxruntime/linux/libonnxruntime.so.1.23.2 $OUT_DIR/lib/
 
           if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
             tar -czf output/open-lpr-sdk-linux-x64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
@@ -170,6 +171,7 @@ jobs:
           cp build/liblpr_sdk_static.a $OUT_DIR/lib/
           cp build/liblpr_sdk_shared.dylib $OUT_DIR/lib/
           cp build/open_lpr $OUT_DIR/lib/
+          cp third_party/onnxruntime/macos/libonnxruntime.1.23.2.dylib $OUT_DIR/lib/
 
           if [[ "${{ needs.context.outputs.is_tag }}" == "true" ]]; then
             tar -czf output/open-lpr-sdk-osx-arm64-${{ needs.context.outputs.version }}.tgz -C dist lpr-sdk
