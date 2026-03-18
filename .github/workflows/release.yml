@@ -116,7 +116,6 @@ jobs:
 
             - name: Setup Android NDK
               run: |
-                  yes | sdkmanager --licenses
                   sdkmanager "ndk;26.1.10909125"
 
             - name: Set NDK env
@@ -201,6 +200,7 @@ jobs:
               run: |
                   OUT_DIR=dist/lpr-sdk
                   mkdir output
+                  mkdir $OUT_DIR
 
                   cp -r build-ios/LprSdk.xcframework $OUT_DIR/
 
