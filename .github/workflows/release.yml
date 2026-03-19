@@ -206,7 +206,7 @@ jobs:
           mkdir -p output
           cd build-ios
           zip -r ../output/LprSdk.xcframework.zip LprSdk.xcframework
-          swift package compute-checksum output/LprSdk.xcframework.zip > checksum.txt
+          swift package compute-checksum ../output/LprSdk.xcframework.zip > checksum.txt
           echo "CHECKSUM=$(cat checksum.txt)" >> $GITHUB_OUTPUT
 
       - uses: actions/upload-artifact@v4
