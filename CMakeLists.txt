@@ -6,10 +6,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-
-set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
-
 enable_language(ASM)
 
 include_directories(include)
@@ -186,7 +182,7 @@ if(NOT IOS AND NOT ANDROID)
 
     target_link_libraries(
         open_lpr
-        lpr_sdk_static
+        lpr_sdk_shared
     )
 
 endif()

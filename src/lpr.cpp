@@ -245,7 +245,7 @@ LprEngine::LprEngine() {
     std::cout << "LPR Engine initializing..." << std::endl;
 
     sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-    sessionOptions.SetIntraOpNumThreads(1);
+    sessionOptions.SetIntraOpNumThreads(0);
 
     // ===== DETECTOR =====
     std::cout << "[LPR] Loading detector model..." << std::endl;
