@@ -34,7 +34,7 @@ sdk.lpr_process.argtypes = [
 ]
 sdk.lpr_process.restype = ctypes.c_int
 
-lpr = sdk.lpr_create()
+lpr = sdk.lpr_create(0)
 
 for image in os.listdir("dataset"):
     

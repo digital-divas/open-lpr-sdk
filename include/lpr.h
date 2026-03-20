@@ -21,7 +21,7 @@ class LprEngine {
 
 public:
 
-    LprEngine();
+    explicit LprEngine(bool verboseLogs = false);
 
     std::vector<LprResult> process(
         const unsigned char* frame,
@@ -41,4 +41,6 @@ private:
 
     std::string ocrInputName;
     std::string ocrOutputName;
+
+    bool verboseLogs = false;
 };

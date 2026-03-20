@@ -7,7 +7,7 @@ Java_com_digitaldivas_openlprsdk_OpenLprSdk_nativeCreate(
         JNIEnv* env,
         jobject thiz) {
 
-    LprEngineHandle* engine = lpr_create();
+    LprEngineHandle* engine = lpr_create(0);
 
     return reinterpret_cast<jlong>(engine);
 }

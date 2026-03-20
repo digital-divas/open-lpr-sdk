@@ -6,12 +6,45 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
-#include <iostream>
 #include <numeric>
+#include <thread>
+#include <chrono>
+
+#ifdef __ANDROID__
+
+#include <android/log.h>
+
+#define LOG_TAG "LPR_SDK"
+#define LOGD(...) __android_log_print(ANDROID_LOG_DEBUG, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+#define LOGD_VERBOSE(verbose, ...) LOGD(__VA_ARGS__)
+
+#else
+
+#include <iostream>
+
+#define LOGD_VERBOSE(verbose, ...) \
+    do { \
+        if (verbose) { \
+            printf(__VA_ARGS__); \
+            printf("\n"); \
+        } \
+    } while(0)
+
+#define LOGD(...) printf(__VA_ARGS__); printf("\n")
+#define LOGE(...) printf(__VA_ARGS__); printf("\n")
+
+#endif
 
 // =========================
 // Utils básicos
 // =========================
+static inline long long now_ms() {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()
+    ).count();
+}
 
 struct Image {
     int w, h, c;
@@ -241,14 +274,50 @@ static std::vector<Detection> nms(std::vector<Detection>& dets, float thresh) {
     return out;
 }
 
-LprEngine::LprEngine() {
-    std::cout << "LPR Engine initializing..." << std::endl;
+LprEngine::LprEngine(bool verbose): verboseLogs(verbose)  {
+    LOGD_VERBOSE(verboseLogs, "LPR Engine initializing...");
 
     sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
     sessionOptions.SetIntraOpNumThreads(0);
 
+    sessionOptions.AddConfigEntry("session.intra_op.allow_spinning", "0");
+
+    try {
+        auto num_threads = std::max(1u, std::thread::hardware_concurrency());
+
+        LOGD_VERBOSE(verboseLogs, "Threads: %d", num_threads);
+
+        sessionOptions.AppendExecutionProvider(
+            "XNNPACK",
+            {{"intra_op_num_threads", std::to_string(num_threads)}}
+        );
+
+        LOGD_VERBOSE(verboseLogs, "XNNPACK enabled");
+
+    } catch (...) {
+        LOGD_VERBOSE(verboseLogs, "XNNPACK not available, fallback to CPU");
+    }
+
+#ifdef __ANDROID__
+
+    // uint32_t nnapi_flags = 0;
+
+    // OrtStatus* status = OrtSessionOptionsAppendExecutionProvider_Nnapi(
+    //     sessionOptions,
+    //     nnapi_flags
+    // );
+
+    // if (status != nullptr) {
+    //     LOGD("[LPR] NNAPI not available, fallback to CPU");
+    //     Ort::GetApi().ReleaseStatus(status);
+    // } else {
+    //     LOGD("[LPR] NNAPI enabled");
+    // }
+
+#endif
+
     // ===== DETECTOR =====
-    std::cout << "[LPR] Loading detector model..." << std::endl;
+    LOGD_VERBOSE(verboseLogs, "[LPR] Loading detector model...");
     detector = std::make_unique<Ort::Session>(
         env,
         (const void*)whoami_onnx,
@@ -257,7 +326,7 @@ LprEngine::LprEngine() {
     );
 
     // ===== OCR =====
-    std::cout << "[LPR] Loading OCR model..." << std::endl;
+    LOGD_VERBOSE(verboseLogs, "[LPR] Loading OCR model...");
     ocr = std::make_unique<Ort::Session>(
         env,
         (const void*)cct_xs_v1_global_onnx,
@@ -270,16 +339,16 @@ LprEngine::LprEngine() {
     auto d_in = detector->GetInputNameAllocated(0, allocator);
     auto d_out = detector->GetOutputNameAllocated(0, allocator);
 
-    detectorInputName = d_in.get();
-    detectorOutputName = d_out.get();
+    detectorInputName = std::string(d_in.get());
+    detectorOutputName = std::string(d_out.get());
 
     auto o_in = ocr->GetInputNameAllocated(0, allocator);
     auto o_out = ocr->GetOutputNameAllocated(0, allocator);
 
-    ocrInputName = o_in.get();
-    ocrOutputName = o_out.get();
+    ocrInputName = std::string(o_in.get());
+    ocrOutputName = std::string(o_out.get());
 
-    std::cout << "LPR Engine ready" << std::endl;
+    LOGD_VERBOSE(verboseLogs, "LPR Engine ready");
 }
 
 // =========================
@@ -291,14 +360,20 @@ std::vector<LprResult> LprEngine::process(
     int width,
     int height
 ) {
+    auto t0 = now_ms();
+
     Image img{width, height, 3};
     img.data.assign(frame, frame + width * height * 3);
+    auto t1 = now_ms();
 
     auto lb = letterbox(img);
+    auto t2 = now_ms();
 
     bgr_to_rgb(lb.img);
+    auto t3 = now_ms();
 
     auto blob = to_tensor(lb.img);
+    auto t4 = now_ms();
 
     std::vector<int64_t> shape = {1, 3, lb.img.h, lb.img.w};
 
@@ -311,6 +386,7 @@ std::vector<LprResult> LprEngine::process(
         shape.data(),
         shape.size()
     );
+    auto t5 = now_ms();
 
     const char* in_names[] = {detectorInputName.c_str()};
     const char* out_names[] = {detectorOutputName.c_str()};
@@ -322,6 +398,26 @@ std::vector<LprResult> LprEngine::process(
         1,
         out_names,
         1
+    );
+    auto t6 = now_ms();
+
+    LOGD_VERBOSE(
+        verboseLogs,
+        "TIMING:\n"
+        "copy:        %lld ms\n"
+        "letterbox:   %lld ms\n"
+        "bgr2rgb:     %lld ms\n"
+        "to_tensor:   %lld ms\n"
+        "tensor:      %lld ms\n"
+        "onnx:        %lld ms\n"
+        "total:       %lld ms",
+        t1 - t0,
+        t2 - t1,
+        t3 - t2,
+        t4 - t3,
+        t5 - t4,
+        t6 - t5,
+        t6 - t0
     );
 
     auto shape_out = outputs[0].GetTensorTypeAndShapeInfo().GetShape();

@@ -5,14 +5,23 @@
 #include "stb_image.h"
 
 int main(int argc, char** argv) {
-    LprEngine engine;
+    bool verbose = false;
+    const char* image_path = nullptr;
 
-    if (argc < 2) {
-        std::cerr << "Usage: " << argv[0] << " <image_path>\n";
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-V") == 0) {
+            verbose = true;
+        } else {
+            image_path = argv[i];
+        }
+    }
+
+    if (!image_path) {
+        std::cerr << "Usage: " << argv[0] << " [-V] <image_path>\n";
         return 1;
     }
 
-    const char* image_path = argv[1];
+    LprEngine engine(verbose);
 
     int width, height, channels;
 

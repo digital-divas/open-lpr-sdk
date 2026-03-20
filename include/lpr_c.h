@@ -26,7 +26,7 @@ typedef struct {
 
 typedef struct LprEngineHandle LprEngineHandle;
 
-LPR_API LprEngineHandle* lpr_create();
+LPR_API LprEngineHandle* lpr_create(int verbose);
 
 LPR_API void lpr_destroy(LprEngineHandle* engine);
 

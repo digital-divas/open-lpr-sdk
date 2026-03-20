@@ -142,20 +142,36 @@ set(LPR_SOURCES
 add_library(lpr_sdk_static STATIC ${LPR_SOURCES})
 add_dependencies(lpr_sdk_static models_embedded)
 
-target_link_libraries(
-    lpr_sdk_static
-    onnxruntime
-)
+if(ANDROID)
+    target_link_libraries(
+        lpr_sdk_static
+        onnxruntime
+        log
+    )
+else()
+    target_link_libraries(
+        lpr_sdk_static
+        onnxruntime
+    )
+endif()
 
 # SHARED LIB
 if(NOT IOS)
     add_library(lpr_sdk_shared SHARED ${LPR_SOURCES})
     add_dependencies(lpr_sdk_shared models_embedded)
 
-    target_link_libraries(
-        lpr_sdk_shared
-        onnxruntime
-    )
+    if(ANDROID)
+        target_link_libraries(
+            lpr_sdk_shared
+            onnxruntime
+            log
+        )
+    else()
+        target_link_libraries(
+            lpr_sdk_shared
+            onnxruntime
+        )
+    endif()
 endif()
 
 #

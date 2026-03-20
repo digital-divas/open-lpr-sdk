@@ -23,6 +23,15 @@ without requiring cloud APIs.
 - 🧩 C++ core with cross-platform support
 - 🔌 Easy integration into iOS / Android apps
 
+## Distribution
+
+| Platform | Method |
+|---|---|
+| Android | AAR via Gradle download |
+| iOS | Swift Package Manager |
+| MacOS | Github Releases |
+| Linux | Github Releases |
+
 ## Installation
 
 ### Android (Gradle)
@@ -107,7 +116,8 @@ The SDK is automatically downloaded during build time.
 3. Usage in Swift
 
     ```swift
-    let sdk = lpr_create()
+    // use 1 if you want to see verbose logs (timing logs)
+    let sdk = lpr_create(0)
 
     let maxResults: Int32 = 16
     var detections = [LprDetection](repeating: LprDetection(), count: Int(maxResults))
@@ -134,14 +144,61 @@ The SDK is automatically downloaded during build time.
     }
     ```
 
-## Distribution
+## MacOS Usage
 
-| Platform | Method |
-|---|---|
-| Android | AAR via Gradle download |
-| iOS | Swift Package Manager |
-| MacOS | Github Releases |
-| Linux | Github Releases |
+After downloading the SDK package, you should have a structure like this:
+
+```
+lib/
+  open_lpr
+  liblpr_sdk_shared.dylib
+  libonnxruntime.1.23.2.dylib
+```
+
+### Running the binary
+
+Navigate to the `lib` folder and run:
+
+```bash
+./open_lpr <image_path>
+```
+
+#### ⚠️ Fixing dynamic library loading (first run)
+
+If you downloaded the prebuilt binaries, macOS may fail to locate the shared libraries and show an error like:
+
+```code
+Library not loaded: @rpath/liblpr_sdk_shared.dylib
+```
+
+To fix this, run:
+
+```bash
+install_name_tool -add_rpath "@loader_path" open_lpr
+```
+
+This tells the executable to look for .dylib files in the same directory.
+
+#### ⚠️ macOS Security Warning (Gatekeeper)
+
+macOS may block the execution of the .dylib files with a message saying they are from an unidentified developer.
+
+To allow them:
+
+1. Open System Settings
+2. Go to Privacy & Security
+3. Scroll down to the Security section
+4. You should see a message about blocked files (e.g. liblpr_sdk_shared.dylib)
+5. Click “Allow Anyway”
+6. Try running the binary again
+
+**Alternative (quick workaround)**
+
+You can remove the quarantine flag from all files with:
+
+```bash
+xattr -rd com.apple.quarantine .
+```
 
 ### Notes
 

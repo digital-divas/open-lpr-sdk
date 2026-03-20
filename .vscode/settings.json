@@ -2,7 +2,9 @@
     "cSpell.words": [
         "confs",
         "imread",
+        "LOGD",
         "newaxis",
+        "Nnapi",
         "onnx"
     ]
 }

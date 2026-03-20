@@ -7,9 +7,11 @@ struct LprEngineHandle {
     LprEngine engine;
 };
 
-LprEngineHandle* lpr_create() {
+LprEngineHandle* lpr_create(int verbose) {
 
-    auto handle = new LprEngineHandle();
+    auto handle = new LprEngineHandle{
+        LprEngine(verbose != 0)
+    };
 
     return handle;
 }
