@@ -10,6 +10,9 @@ extern const unsigned int  whoami_onnx_len;
 extern const unsigned char cct_xs_v1_global_onnx[];
 extern const unsigned int  cct_xs_v1_global_onnx_len;
 
+extern const unsigned char yolo11n_onnx[];
+extern const unsigned int  yolo11n_onnx_len;
+
 #ifdef __cplusplus
 }
 #endif

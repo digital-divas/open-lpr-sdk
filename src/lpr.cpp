@@ -38,7 +38,7 @@
 #endif
 
 // =========================
-// Utils básicos
+// basic Utils
 // =========================
 static inline long long now_ms() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -95,7 +95,7 @@ static Image resize_bilinear(const Image& src, int new_w, int new_h) {
     return dst;
 }
 
-// BGR → RGB (igual OpenCV pipeline)
+// BGR → RGB (just like OpenCV pipeline)
 static void bgr_to_rgb(Image& img) {
     for (int i = 0; i < img.w * img.h; i++) {
         std::swap(img.data[i * 3 + 0], img.data[i * 3 + 2]);
@@ -150,7 +150,6 @@ static Image ocr_preprocess(const Image& img, int target_w = 128, int target_h =
         }
     }
 
-    // BGR → RGB (igual antes)
     bgr_to_rgb(canvas);
 
     return canvas;
@@ -234,12 +233,6 @@ static std::vector<float> to_tensor(const Image& img) {
 // =========================
 // NMS
 // =========================
-
-struct Detection {
-    float x1, y1, x2, y2;
-    float conf;
-};
-
 static float iou(const Detection& a, const Detection& b) {
     float x1 = std::max(a.x1, b.x1);
     float y1 = std::max(a.y1, b.y1);
@@ -283,40 +276,43 @@ LprEngine::LprEngine(bool verbose): verboseLogs(verbose)  {
     sessionOptions.AddConfigEntry("session.intra_op.allow_spinning", "0");
 
     try {
-        auto num_threads = std::max(1u, std::thread::hardware_concurrency());
-
-        LOGD_VERBOSE(verboseLogs, "Threads: %d", num_threads);
-
         sessionOptions.AppendExecutionProvider(
-            "XNNPACK",
-            {{"intra_op_num_threads", std::to_string(num_threads)}}
+            "NNAPI",
+            {}
         );
 
-        LOGD_VERBOSE(verboseLogs, "XNNPACK enabled");
+        LOGD_VERBOSE(verboseLogs, "NNAPI enabled");
 
     } catch (...) {
-        LOGD_VERBOSE(verboseLogs, "XNNPACK not available, fallback to CPU");
+        LOGD_VERBOSE(verboseLogs, "NNAPI not available, fallback to XNNPACK");
+
+        try {
+            auto num_threads = std::max(1u, std::thread::hardware_concurrency());
+
+            LOGD_VERBOSE(verboseLogs, "Threads: %d", num_threads);
+
+            sessionOptions.AppendExecutionProvider(
+                "XNNPACK",
+                {{"intra_op_num_threads", std::to_string(num_threads)}}
+            );
+
+            LOGD_VERBOSE(verboseLogs, "XNNPACK enabled");
+
+        } catch (...) {
+            LOGD_VERBOSE(verboseLogs, "XNNPACK not available, fallback to CPU");
+        }
     }
 
-#ifdef __ANDROID__
+    // ===== Yolo =====
+    LOGD_VERBOSE(verboseLogs, "[LPR] Loading yolo model...");
+    yolo = std::make_unique<Ort::Session>(
+        env,
+        (const void*)yolo11n_onnx,
+        (size_t)yolo11n_onnx_len,
+        sessionOptions
+    );
 
-    // uint32_t nnapi_flags = 0;
-
-    // OrtStatus* status = OrtSessionOptionsAppendExecutionProvider_Nnapi(
-    //     sessionOptions,
-    //     nnapi_flags
-    // );
-
-    // if (status != nullptr) {
-    //     LOGD("[LPR] NNAPI not available, fallback to CPU");
-    //     Ort::GetApi().ReleaseStatus(status);
-    // } else {
-    //     LOGD("[LPR] NNAPI enabled");
-    // }
-
-#endif
-
-    // ===== DETECTOR =====
+    // ===== PLATE DETECTOR =====
     LOGD_VERBOSE(verboseLogs, "[LPR] Loading detector model...");
     detector = std::make_unique<Ort::Session>(
         env,
@@ -348,14 +344,16 @@ LprEngine::LprEngine(bool verbose): verboseLogs(verbose)  {
     ocrInputName = std::string(o_in.get());
     ocrOutputName = std::string(o_out.get());
 
+    auto y_in = yolo->GetInputNameAllocated(0, allocator);
+    auto y_out = yolo->GetOutputNameAllocated(0, allocator);
+
+    yoloInputName = std::string(y_in.get());
+    yoloOutputName = std::string(y_out.get());
+
     LOGD_VERBOSE(verboseLogs, "LPR Engine ready");
 }
 
-// =========================
-// PROCESS (DETECTOR REAL)
-// =========================
-
-std::vector<LprResult> LprEngine::process(
+std::vector<LprResult> LprEngine::run_plate_detector(
     const unsigned char* frame,
     int width,
     int height
@@ -366,7 +364,7 @@ std::vector<LprResult> LprEngine::process(
     img.data.assign(frame, frame + width * height * 3);
     auto t1 = now_ms();
 
-    auto lb = letterbox(img);
+    auto lb = letterbox(img, 320, 320);
     auto t2 = now_ms();
 
     bgr_to_rgb(lb.img);
@@ -511,4 +509,188 @@ std::vector<LprResult> LprEngine::process(
     }
 
     return results;
+}
+
+std::vector<Detection> LprEngine::run_yolo(
+    const unsigned char* frame,
+    int width,
+    int height
+) {
+    Image img{width, height, 3};
+    img.data.assign(frame, frame + width * height * 3);
+
+    auto lb = letterbox(img, 320, 320);
+
+    bgr_to_rgb(lb.img);
+
+    auto blob = to_tensor(lb.img);
+
+    std::vector<int64_t> shape = {1, 3, lb.img.h, lb.img.w};
+
+    Ort::MemoryInfo mem = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+
+    auto input = Ort::Value::CreateTensor<float>(
+        mem,
+        blob.data(),
+        blob.size(),
+        shape.data(),
+        shape.size()
+    );
+
+    const char* in_names[] = {yoloInputName.c_str()};
+    const char* out_names[] = {yoloOutputName.c_str()};
+
+    auto outputs = yolo->Run(
+        Ort::RunOptions{nullptr},
+        in_names,
+        &input,
+        1,
+        out_names,
+        1
+    );
+
+    auto shape_out = outputs[0].GetTensorTypeAndShapeInfo().GetShape();
+
+    int num_attrs = (int)shape_out[1];
+    int num_preds = (int)shape_out[2];
+
+    const float* raw = outputs[0].GetTensorData<float>();
+
+    std::vector<Detection> dets;
+
+    for (int i = 0; i < num_preds; i++) {
+
+        int best_cls = -1;
+        float best_conf = 0.f;
+
+        for (int c = 4; c < num_attrs; c++) {
+            float score = raw[c * num_preds + i];
+            if (score > best_conf) {
+                best_conf = score;
+                best_cls = c - 4;
+            }
+        }
+
+        if (best_conf < 0.25f) continue;
+
+        float cx = raw[0 * num_preds + i];
+        float cy = raw[1 * num_preds + i];
+        float bw = raw[2 * num_preds + i];
+        float bh = raw[3 * num_preds + i];
+
+        float x1 = ((cx - bw / 2) - lb.dw) / lb.ratio;
+        float y1 = ((cy - bh / 2) - lb.dh) / lb.ratio;
+        float x2 = ((cx + bw / 2) - lb.dw) / lb.ratio;
+        float y2 = ((cy + bh / 2) - lb.dh) / lb.ratio;
+
+        dets.push_back({x1, y1, x2, y2, best_conf, best_cls});
+    }
+
+    auto final_dets = nms(dets, 0.45f);
+
+    // ===== filter by vehicles classes =====
+    std::vector<Detection> vehicles;
+
+    for (auto& d : final_dets) {
+
+        // COCO classes
+        if (
+            d.class_id == 1 || // bicycle
+            d.class_id == 2 || // car
+            d.class_id == 3 || // motorcycle
+            d.class_id == 5 || // bus
+            d.class_id == 7    // truck
+        ) {
+            vehicles.push_back(d);
+        }
+    }
+
+    return vehicles;
+}
+
+// =========================
+// PROCESS 
+// =========================
+
+std::vector<LprResult> LprEngine::process(
+    const unsigned char* frame,
+    int width,
+    int height
+) {
+    auto t0 = now_ms();
+    auto vehicles = run_yolo(frame, width, height);
+    auto t1 = now_ms();
+    LOGD_VERBOSE(
+        verboseLogs,
+        "yolo time:%lld ms\n",
+        t1 - t0
+    );
+
+    if (!vehicles.empty()) {
+
+        int count = 0;
+        std::vector<LprResult> all_results;
+        const int MAX_VEHICLES = 3;
+
+        for (auto& v : vehicles) {
+
+            if (count >= MAX_VEHICLES)
+                break;
+
+            int x1 = (int)v.x1;
+            int y1 = (int)v.y1;
+            int x2 = (int)v.x2;
+            int y2 = (int)v.y2;
+
+            int w = x2 - x1;
+            int h = y2 - y1;
+
+            // min width 200 - vehicle images need at least this size to recognize plate 
+            if (w < 200) {
+                continue;
+            }
+
+            int cx1 = std::max(0, x1);
+            int cy1 = std::max(0, y1);
+            int cx2 = std::min(width,  x2);
+            int cy2 = std::min(height, y2);
+
+            int crop_w = cx2 - cx1;
+            int crop_h = cy2 - cy1;
+
+            if (crop_w <= 0 || crop_h <= 0)
+                continue;
+
+            std::vector<uint8_t> crop(crop_w * crop_h * 3);
+
+            for (int y = 0; y < crop_h; y++) {
+                const uint8_t* src = frame + ((cy1 + y) * width + cx1) * 3;
+                uint8_t* dst = crop.data() + (y * crop_w) * 3;
+
+                memcpy(dst, src, crop_w * 3);
+            }
+
+            auto results = run_plate_detector(crop.data(), crop_w, crop_h);
+
+            // adjust coordinates by cropped image
+            for (auto& r : results) {
+                r.x1 += cx1;
+                r.y1 += cy1;
+                r.x2 += cx1;
+                r.y2 += cy1;
+
+                all_results.push_back(r);
+            }
+
+            count++;
+        }
+
+        return all_results;
+
+    } 
+
+    LOGD_VERBOSE(verboseLogs,"fallback: rodando detector direto");
+
+    return run_plate_detector(frame, width, height);
+
 }

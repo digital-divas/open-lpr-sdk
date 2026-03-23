@@ -103,7 +103,7 @@ set(EMBED_SCRIPT ${CMAKE_SOURCE_DIR}/embed_model.py)
 
 set(MODEL_OBJECTS)
 
-foreach(MODEL whoami.onnx cct_xs_v1_global.onnx)
+foreach(MODEL whoami.onnx cct_xs_v1_global.onnx yolo11n.onnx)
 
     string(REPLACE "." "_" MODEL_VAR ${MODEL})
     string(REPLACE "-" "_" MODEL_VAR ${MODEL_VAR})
