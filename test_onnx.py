@@ -100,7 +100,7 @@ def letterbox(img, new_shape=(640,640), color=(114,114,114)):
     return img_padded, r, (dw, dh)
 
 def detect_yolo_onnx(image, session):
-    img, ratio, (dw, dh) = letterbox(image, (320, 320))
+    img, ratio, (dw, dh) = letterbox(image, (640, 640))
 
     img = img.transpose(2,0,1)
     img = np.expand_dims(img, axis=0).astype(np.float32) / 255.0
@@ -267,7 +267,7 @@ def parse_yolo_output(outputs, image, ratio, dw, dh, min_confidence=0.25):
     return results
 
 # for image_path in os.listdir('dataset'):
-for image_path in ["TCE2D05.jpg", "SDQ2F48.jpg", "FWA5913.jpg"]:
+for image_path in ["TCE2D05.jpg", "SDQ2F48.jpg", "FWA5913.jpg", "FIF1C20.jpg"]:
     print('-----')
     print(f"dataset/{image_path}")
     image = cv2.imread(f"dataset/{image_path}")

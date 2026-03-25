@@ -519,7 +519,7 @@ std::vector<Detection> LprEngine::run_yolo(
     Image img{width, height, 3};
     img.data.assign(frame, frame + width * height * 3);
 
-    auto lb = letterbox(img, 320, 320);
+    auto lb = letterbox(img, 640, 640);
 
     bgr_to_rgb(lb.img);
 
