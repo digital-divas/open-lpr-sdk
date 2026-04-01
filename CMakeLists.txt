@@ -47,18 +47,21 @@ if(ANDROID)
     )
 elseif(IOS)
 
-    if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator")
-        message(FATAL_ERROR "ONNX Runtime not available for simulator")
-    endif()
-
-
     add_library(onnxruntime STATIC IMPORTED)
 
-    set_target_properties(
-        onnxruntime
-        PROPERTIES IMPORTED_LOCATION
-        ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64/libonnxruntime.a
-    )
+    if(CMAKE_OSX_SYSROOT MATCHES "iphonesimulator")
+        set_target_properties(
+            onnxruntime
+            PROPERTIES IMPORTED_LOCATION
+            ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64-simulator/libonnxruntime.a
+        )
+    else() 
+        set_target_properties(
+            onnxruntime
+            PROPERTIES IMPORTED_LOCATION
+            ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64/libonnxruntime.a
+        )
+    endif()
 
 elseif(APPLE)
 
