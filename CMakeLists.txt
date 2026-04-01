@@ -158,6 +158,13 @@ endif()
 # SHARED LIB
 if(NOT IOS)
     add_library(lpr_sdk_shared SHARED ${LPR_SOURCES})
+
+    if(ANDROID)
+        target_link_options(lpr_sdk_shared PRIVATE
+            -Wl,-z,max-page-size=16384
+        )
+    endif()
+
     add_dependencies(lpr_sdk_shared models_embedded)
 
     if(ANDROID)
