@@ -10,6 +10,10 @@ add_library(
     jni.cpp
 )
 
+target_link_options(openlpr_jni PRIVATE
+    -Wl,-z,max-page-size=16384
+)
+
 add_library(
     lpr_sdk_shared
     SHARED
