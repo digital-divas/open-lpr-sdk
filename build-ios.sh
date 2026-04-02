@@ -44,3 +44,21 @@ xcodebuild -create-xcframework \
  -library $BUILD_DIR/simulator/liblpr_combined.a \
  -headers include \
  -output $BUILD_DIR/LprSdk.xcframework
+
+cat > module.modulemap <<EOF
+module LprSdk {
+    umbrella "Headers"
+    export *
+}
+EOF
+
+XCFRAMEWORK_PATH="$BUILD_DIR/LprSdk.xcframework"
+
+for ARCH_PATH in "$XCFRAMEWORK_PATH"/*; do
+  if [ -d "$ARCH_PATH" ]; then
+    mkdir -p "$ARCH_PATH/Modules"
+    cp module.modulemap "$ARCH_PATH/Modules/"
+  fi
+done
+
+rm module.modulemap
