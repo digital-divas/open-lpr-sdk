@@ -3,6 +3,25 @@
 
 #include <onnxruntime_cxx_api.h>
 
+struct LprEngine::LprEngineImpl {
+    Ort::Env env{ORT_LOGGING_LEVEL_WARNING, "lpr"};
+    Ort::SessionOptions sessionOptions;
+
+    std::unique_ptr<Ort::Session> detector;
+    std::unique_ptr<Ort::Session> ocr;
+    std::unique_ptr<Ort::Session> yolo;
+
+    std::string detectorInputName;
+    std::string detectorOutputName;
+
+    std::string ocrInputName;
+    std::string ocrOutputName;
+
+    std::string yoloInputName;
+    std::string yoloOutputName;
+};
+
+
 #include <vector>
 #include <cmath>
 #include <algorithm>
@@ -267,16 +286,16 @@ static std::vector<Detection> nms(std::vector<Detection>& dets, float thresh) {
     return out;
 }
 
-LprEngine::LprEngine(bool verbose): verboseLogs(verbose)  {
+LprEngine::LprEngine(bool verbose): verboseLogs(verbose), impl(std::make_unique<LprEngineImpl>())  {
     LOGD_VERBOSE(verboseLogs, "LPR Engine initializing...");
 
-    sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
-    sessionOptions.SetIntraOpNumThreads(0);
+    impl->sessionOptions.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL);
+    impl->sessionOptions.SetIntraOpNumThreads(0);
 
-    sessionOptions.AddConfigEntry("session.intra_op.allow_spinning", "0");
+    impl->sessionOptions.AddConfigEntry("session.intra_op.allow_spinning", "0");
 
     try {
-        sessionOptions.AppendExecutionProvider(
+        impl->sessionOptions.AppendExecutionProvider(
             "NNAPI",
             {}
         );
@@ -291,7 +310,7 @@ LprEngine::LprEngine(bool verbose): verboseLogs(verbose)  {
 
             LOGD_VERBOSE(verboseLogs, "Threads: %d", num_threads);
 
-            sessionOptions.AppendExecutionProvider(
+            impl->sessionOptions.AppendExecutionProvider(
                 "XNNPACK",
                 {{"intra_op_num_threads", std::to_string(num_threads)}}
             );
@@ -305,50 +324,50 @@ LprEngine::LprEngine(bool verbose): verboseLogs(verbose)  {
 
     // ===== Yolo =====
     LOGD_VERBOSE(verboseLogs, "[LPR] Loading yolo model...");
-    yolo = std::make_unique<Ort::Session>(
-        env,
+    impl->yolo = std::make_unique<Ort::Session>(
+        impl->env,
         (const void*)yolo11n_onnx,
         (size_t)yolo11n_onnx_len,
-        sessionOptions
+        impl->sessionOptions
     );
 
     // ===== PLATE DETECTOR =====
     LOGD_VERBOSE(verboseLogs, "[LPR] Loading detector model...");
-    detector = std::make_unique<Ort::Session>(
-        env,
+    impl->detector = std::make_unique<Ort::Session>(
+        impl->env,
         (const void*)whoami_onnx,
         (size_t)whoami_onnx_len,
-        sessionOptions
+        impl->sessionOptions
     );
 
     // ===== OCR =====
     LOGD_VERBOSE(verboseLogs, "[LPR] Loading OCR model...");
-    ocr = std::make_unique<Ort::Session>(
-        env,
+    impl->ocr = std::make_unique<Ort::Session>(
+        impl->env,
         (const void*)cct_xs_v1_global_onnx,
         (size_t)cct_xs_v1_global_onnx_len,
-        sessionOptions
+        impl->sessionOptions
     );
 
     Ort::AllocatorWithDefaultOptions allocator;
 
-    auto d_in = detector->GetInputNameAllocated(0, allocator);
-    auto d_out = detector->GetOutputNameAllocated(0, allocator);
+    auto d_in = impl->detector->GetInputNameAllocated(0, allocator);
+    auto d_out = impl->detector->GetOutputNameAllocated(0, allocator);
 
-    detectorInputName = std::string(d_in.get());
-    detectorOutputName = std::string(d_out.get());
+    impl->detectorInputName = std::string(d_in.get());
+    impl->detectorOutputName = std::string(d_out.get());
 
-    auto o_in = ocr->GetInputNameAllocated(0, allocator);
-    auto o_out = ocr->GetOutputNameAllocated(0, allocator);
+    auto o_in = impl->ocr->GetInputNameAllocated(0, allocator);
+    auto o_out = impl->ocr->GetOutputNameAllocated(0, allocator);
 
-    ocrInputName = std::string(o_in.get());
-    ocrOutputName = std::string(o_out.get());
+    impl->ocrInputName = std::string(o_in.get());
+    impl->ocrOutputName = std::string(o_out.get());
 
-    auto y_in = yolo->GetInputNameAllocated(0, allocator);
-    auto y_out = yolo->GetOutputNameAllocated(0, allocator);
+    auto y_in = impl->yolo->GetInputNameAllocated(0, allocator);
+    auto y_out = impl->yolo->GetOutputNameAllocated(0, allocator);
 
-    yoloInputName = std::string(y_in.get());
-    yoloOutputName = std::string(y_out.get());
+    impl->yoloInputName = std::string(y_in.get());
+    impl->yoloOutputName = std::string(y_out.get());
 
     LOGD_VERBOSE(verboseLogs, "LPR Engine ready");
 }
@@ -386,10 +405,10 @@ std::vector<LprResult> LprEngine::run_plate_detector(
     );
     auto t5 = now_ms();
 
-    const char* in_names[] = {detectorInputName.c_str()};
-    const char* out_names[] = {detectorOutputName.c_str()};
+    const char* in_names[] = {impl->detectorInputName.c_str()};
+    const char* out_names[] = {impl->detectorOutputName.c_str()};
 
-    auto outputs = detector->Run(
+    auto outputs = impl->detector->Run(
         Ort::RunOptions{nullptr},
         in_names,
         &input,
@@ -473,10 +492,10 @@ std::vector<LprResult> LprEngine::run_plate_detector(
                 ocr_shape.size()
             );
 
-            const char* ocr_in[] = {ocrInputName.c_str()};
-            const char* ocr_out[] = {ocrOutputName.c_str()};
+            const char* ocr_in[] = {impl->ocrInputName.c_str()};
+            const char* ocr_out[] = {impl->ocrOutputName.c_str()};
 
-            auto ocr_outputs = ocr->Run(
+            auto ocr_outputs = impl->ocr->Run(
                 Ort::RunOptions{nullptr},
                 ocr_in,
                 &ocr_tensor,
@@ -537,10 +556,10 @@ std::vector<Detection> LprEngine::run_yolo(
         shape.size()
     );
 
-    const char* in_names[] = {yoloInputName.c_str()};
-    const char* out_names[] = {yoloOutputName.c_str()};
+    const char* in_names[] = {impl->yoloInputName.c_str()};
+    const char* out_names[] = {impl->yoloOutputName.c_str()};
 
-    auto outputs = yolo->Run(
+    auto outputs = impl->yolo->Run(
         Ort::RunOptions{nullptr},
         in_names,
         &input,

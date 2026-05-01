@@ -3,7 +3,6 @@
 #include <string>
 #include <vector>
 #include <memory>
-#include <onnxruntime_cxx_api.h>
 
 struct LprResult {
 
@@ -48,21 +47,8 @@ public:
     );
 
 private:
-    Ort::Env env;
-    Ort::SessionOptions sessionOptions;
-
-    std::unique_ptr<Ort::Session> detector;
-    std::unique_ptr<Ort::Session> ocr;
-    std::unique_ptr<Ort::Session> yolo;
-
-    std::string detectorInputName;
-    std::string detectorOutputName;
-
-    std::string ocrInputName;
-    std::string ocrOutputName;
-
-    std::string yoloInputName;
-    std::string yoloOutputName;
+    struct LprEngineImpl;
+    std::unique_ptr<LprEngineImpl> impl;
 
     bool verboseLogs = false;
 };
