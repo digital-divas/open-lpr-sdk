@@ -35,7 +35,7 @@ else()
     set(ONNXRUNTIME_DIR ${ONNXRUNTIME_ROOT}/linux)
 endif()
 
-# só inclui ONNX fora do simulator
+# ignore ONNX for ios simulator
 if(NOT IS_IOS_SIMULATOR)
     include_directories(${ONNXRUNTIME_DIR}/include)
 endif()

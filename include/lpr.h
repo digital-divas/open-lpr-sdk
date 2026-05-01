@@ -27,6 +27,15 @@ class LprEngine {
 public:
 
     explicit LprEngine(bool verboseLogs = false);
+    ~LprEngine();
+
+    LprEngine(const LprEngine&) = delete;
+
+    LprEngine& operator=(const LprEngine&) = delete;
+
+    LprEngine(LprEngine&&) noexcept = default;
+
+    LprEngine& operator=(LprEngine&&) noexcept = default;
 
     std::vector<LprResult> process(
         const unsigned char* frame,

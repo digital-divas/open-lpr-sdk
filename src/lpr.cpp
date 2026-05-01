@@ -372,6 +372,8 @@ LprEngine::LprEngine(bool verbose): verboseLogs(verbose), impl(std::make_unique<
     LOGD_VERBOSE(verboseLogs, "LPR Engine ready");
 }
 
+LprEngine::~LprEngine() = default;
+
 std::vector<LprResult> LprEngine::run_plate_detector(
     const unsigned char* frame,
     int width,
