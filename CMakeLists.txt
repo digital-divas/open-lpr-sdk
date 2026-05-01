@@ -39,7 +39,9 @@ else()
 endif()
 
 # ignore ONNX for ios simulator
-include_directories(${ONNXRUNTIME_DIR}/include)
+if(NOT IS_IOS_SIMULATOR)
+    include_directories(${ONNXRUNTIME_DIR}/include)
+endif()
 
 #
 # Import ONNX Runtime library
@@ -55,23 +57,15 @@ if(ANDROID)
         ${CMAKE_SOURCE_DIR}/third_party/onnxruntime/android/lib/${ANDROID_ABI}/libonnxruntime.so
     )
 
-elseif(IOS)
+elseif(IOS AND NOT IS_IOS_SIMULATOR)
 
     add_library(onnxruntime STATIC IMPORTED)
 
-    if(IS_IOS_SIMULATOR)
-        set_target_properties(
-            onnxruntime
-            PROPERTIES IMPORTED_LOCATION
-            ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64-simulator/libonnxruntime.a
-        )
-    else() 
-        set_target_properties(
-            onnxruntime
-            PROPERTIES IMPORTED_LOCATION
-            ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64/libonnxruntime.a
-        )
-    endif()
+    set_target_properties(
+        onnxruntime
+        PROPERTIES IMPORTED_LOCATION
+        ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64/libonnxruntime.a
+    )
 
 elseif(APPLE)
 
@@ -83,7 +77,7 @@ elseif(APPLE)
         ${ONNXRUNTIME_DIR}/libonnxruntime.1.23.2.dylib
     )
 
-else()
+elseif(NOT IS_IOS_SIMULATOR)
 
     add_library(onnxruntime SHARED IMPORTED)
 
@@ -145,8 +139,15 @@ add_custom_target(models_embedded DEPENDS ${MODEL_OBJECTS})
 # -------- LPR SDK ----------
 #
 
+if(IS_IOS_SIMULATOR)
+    message(STATUS "Building LPR SDK with STUB (iOS Simulator)")
+    set(LPR_CORE src/lpr_stub.cpp)
+else()
+    set(LPR_CORE src/lpr.cpp)
+endif()
+
 set(LPR_SOURCES
-    src/lpr.cpp
+    ${LPR_CORE}
     src/lpr_c.cpp
     ${MODEL_OBJECTS}
 )
@@ -161,7 +162,7 @@ if(ANDROID)
         onnxruntime
         log
     )
-else()
+elseif(NOT IS_IOS_SIMULATOR)
     target_link_libraries(
         lpr_sdk_static
         onnxruntime

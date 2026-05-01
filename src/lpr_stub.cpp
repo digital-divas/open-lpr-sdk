@@ -2,11 +2,14 @@
 #include <thread>
 #include <chrono>
 
-LprEngine::LprEngine(bool verboseLogs)
-    : verboseLogs(verboseLogs)
-{
+struct LprEngine::LprEngineImpl {
+};
+
+LprEngine::LprEngine(bool verboseLogs): verboseLogs(verboseLogs), impl(std::make_unique<LprEngineImpl>()) {
 
 }
+
+LprEngine::~LprEngine() = default;
 
 std::vector<LprResult> LprEngine::process(
     const unsigned char* frame,
