@@ -13,7 +13,10 @@ include_directories(include)
 # -------- Detect iOS Simulator ----------
 #
 
-if(IOS AND CMAKE_OSX_SYSROOT MATCHES "iphonesimulator")
+string(TOLOWER "${CMAKE_OSX_SYSROOT}" SYSROOT_LOWER)
+
+if(IOS AND SYSROOT_LOWER MATCHES "iphonesimulator")
+    message(STATUS "building for ios simulator")
     set(IS_IOS_SIMULATOR TRUE)
 else()
     set(IS_IOS_SIMULATOR FALSE)
@@ -36,9 +39,7 @@ else()
 endif()
 
 # ignore ONNX for ios simulator
-if(NOT IS_IOS_SIMULATOR)
-    include_directories(${ONNXRUNTIME_DIR}/include)
-endif()
+include_directories(${ONNXRUNTIME_DIR}/include)
 
 #
 # Import ONNX Runtime library
@@ -54,15 +55,23 @@ if(ANDROID)
         ${CMAKE_SOURCE_DIR}/third_party/onnxruntime/android/lib/${ANDROID_ABI}/libonnxruntime.so
     )
 
-elseif(IOS AND NOT IS_IOS_SIMULATOR)
+elseif(IOS)
 
     add_library(onnxruntime STATIC IMPORTED)
 
-    set_target_properties(
-        onnxruntime
-        PROPERTIES IMPORTED_LOCATION
-        ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64/libonnxruntime.a
-    )
+    if(IS_IOS_SIMULATOR)
+        set_target_properties(
+            onnxruntime
+            PROPERTIES IMPORTED_LOCATION
+            ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64-simulator/libonnxruntime.a
+        )
+    else() 
+        set_target_properties(
+            onnxruntime
+            PROPERTIES IMPORTED_LOCATION
+            ${ONNXRUNTIME_DIR}/onnxruntime.xcframework/ios-arm64/libonnxruntime.a
+        )
+    endif()
 
 elseif(APPLE)
 
@@ -74,7 +83,7 @@ elseif(APPLE)
         ${ONNXRUNTIME_DIR}/libonnxruntime.1.23.2.dylib
     )
 
-elseif(NOT IS_IOS_SIMULATOR)
+else()
 
     add_library(onnxruntime SHARED IMPORTED)
 
@@ -136,15 +145,8 @@ add_custom_target(models_embedded DEPENDS ${MODEL_OBJECTS})
 # -------- LPR SDK ----------
 #
 
-if(IS_IOS_SIMULATOR)
-    message(STATUS "Building LPR SDK with STUB (iOS Simulator)")
-    set(LPR_CORE src/lpr_stub.cpp)
-else()
-    set(LPR_CORE src/lpr.cpp)
-endif()
-
 set(LPR_SOURCES
-    ${LPR_CORE}
+    src/lpr.cpp
     src/lpr_c.cpp
     ${MODEL_OBJECTS}
 )
@@ -159,7 +161,7 @@ if(ANDROID)
         onnxruntime
         log
     )
-elseif(NOT IS_IOS_SIMULATOR)
+else()
     target_link_libraries(
         lpr_sdk_static
         onnxruntime
@@ -184,7 +186,7 @@ if(NOT IOS)
             onnxruntime
             log
         )
-    elseif(NOT IS_IOS_SIMULATOR)
+    else()
         target_link_libraries(
             lpr_sdk_shared
             onnxruntime
