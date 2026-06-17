@@ -31,6 +31,51 @@ without requiring cloud APIs.
 | iOS | Swift Package Manager |
 | MacOS | Github Releases |
 | Linux | Github Releases |
+| Docker | Prebuilt HTTP API |
+
+### Docker API
+
+If you prefer to consume Open LPR as a standalone HTTP service instead of integrating the SDK directly, an official Docker image is available.
+
+Repository:
+
+👉 <https://github.com/digital-divas/open-lpr-api>
+
+Run locally:
+
+```sh
+docker run -p 3000:3000 ezequielmr94/open-lpr-api
+```
+
+The API will be available at:
+
+<http://localhost:3000>
+
+Example request:
+
+```sh
+curl \
+  -X POST \
+  -F "file=@vehicle.jpg" \
+  http://localhost:3000/detect
+```
+
+Example response:
+
+```json
+[
+  {
+    "plate": "ABC1234",
+    "confidence": 0.98,
+    "x1": 120,
+    "y1": 220,
+    "x2": 290,
+    "y2": 265
+  }
+]
+```
+
+The Docker API internally uses the same Open LPR SDK distributed by this repository.
 
 ## Installation
 
@@ -149,10 +194,12 @@ The SDK is automatically downloaded during build time.
 After downloading the SDK package, you should have a structure like this:
 
 ```
+
 lib/
   open_lpr
   liblpr_sdk_shared.dylib
   libonnxruntime.1.23.2.dylib
+
 ```
 
 ### Running the binary
